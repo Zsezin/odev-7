@@ -1,0 +1,88 @@
+// server.js
+
+const express = require('express');
+const mysql = require('mysql2');
+const bodyParser = require('body-parser');
+const cors = require('cors')
+require('dotenv').config();
+const app = express();
+
+
+// MySQL bağlantısı
+const db = mysql.createConnection({
+    host: process.env.DB_HOST,       // .env dosyasındaki DB_HOST değişkeni
+    user: process.env.DB_USER,       // .env dosyasındaki DB_USER değişkeni
+    password: process.env.DB_PASSWORD, // .env dosyasındaki DB_PASSWORD değişkeni
+    database: process.env.DB_NAME    // .env dosyasındaki DB_NAME değişkeni
+  });
+
+// Veritabanı bağlantısı kontrolü
+db.connect((err) => {
+  if (err) {
+    console.error('Veritabanı bağlantısı başarısız: ', err.stack);
+    return;
+  }
+  console.log('Veritabanı bağlantısı başarılı');
+});
+
+// Middleware
+app.use(bodyParser.json());
+app.use(cors());
+
+// Öğrenci ekleme (CREATE)
+app.post('/ogrenci', (req, res) => {
+  const { ad, soyad, bolumId } = req.body;
+  const sql = 'INSERT INTO ogrenciler (ad, soyad, bolumId) VALUES (?, ?, ?)';
+  db.query(sql, [ad, soyad, bolumId], (err, result) => {
+    if (err) {
+      console.error('Hata oluştu: ', err);
+      return res.status(500).json('Hata oluştu.');
+    }
+    res.status(201).json({ message: 'Öğrenci başarıyla eklendi', id: result.insertId });
+  });
+});
+
+// Öğrenci listeleme (READ)
+app.get('/ogrenci', (req, res) => {
+  const sql = 'SELECT * FROM ogrenciler';
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Hata oluştu: ', err);
+      return res.status(500).json('Hata oluştu.');
+    }
+    res.status(200).json(results);
+  });
+});
+
+// Öğrenci güncelleme (UPDATE)
+app.put('/ogrenci/:id', (req, res) => {
+  const { id } = req.params;
+  const { ad, soyad, bolumId } = req.body;
+  const sql = 'UPDATE ogrenciler SET ad = ?, soyad = ?, bolumId = ? WHERE ogrenciID = ?';
+  db.query(sql, [ad, soyad, bolumId, id], (err, result) => {
+    if (err) {
+      console.error('Hata oluştu: ', err);
+      return res.status(500).json('Hata oluştu.');
+    }
+    res.status(200).json({ message: 'Öğrenci başarıyla güncellendi' });
+  });
+});
+
+// Öğrenci silme (DELETE)
+app.delete('/ogrenci/:id', (req, res) => {
+  const { id } = req.params;
+  const sql = 'DELETE FROM ogrenciler WHERE ogrenciID = ?';
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error('Hata oluştu: ', err);
+      return res.status(500).json('Hata oluştu.');
+    }
+    res.status(200).json({ message: 'Öğrenci başarıyla silindi' });
+  });
+});
+
+// Sunucuyu başlatma
+const port = 3000;
+app.listen(port, () => {
+  console.log(`Sunucu http://localhost:${port} adresinde çalışıyor`);
+});
