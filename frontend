@@ -1,0 +1,258 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Öğrenci Uygulaması',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: OgrenciListesi(),
+    );
+  }
+}
+
+class OgrenciListesi extends StatefulWidget {
+  @override
+  _OgrenciListesiState createState() => _OgrenciListesiState();
+}
+
+class _OgrenciListesiState extends State<OgrenciListesi> {
+  List<dynamic> ogrenciler = [];
+  TextEditingController adController = TextEditingController();
+  TextEditingController soyadController = TextEditingController();
+  TextEditingController bolumIdController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    fetchOgrenciler();
+  }
+
+  // Öğrencileri API'den çekme
+  Future<void> fetchOgrenciler() async {
+    try {
+      final response = await http.get(Uri.parse('http://192.168.56.1:3000/ogrenci'));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          ogrenciler = json.decode(response.body);
+        });
+      } else {
+        throw Exception('Öğrenciler listesi alınamadı');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('API Hatası: $e')));
+    }
+  }
+
+  // Öğrenci ekleme
+  Future<void> addOgrenci(String ad, String soyad, int bolumId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://192.168.56.1:3000/ogrenci'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'ad': ad,
+          'soyad': soyad,
+          'bolumId': bolumId,
+        }),
+      );
+      if (response.statusCode == 201) {
+        fetchOgrenciler();
+        clearFields();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Öğrenci başarıyla eklendi')));
+      } else {
+        throw Exception('Öğrenci eklenemedi');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+    }
+  }
+
+  // Öğrenci güncelleme
+  Future<void> updateOgrenci(int id, String ad, String soyad, int bolumId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('http://192.168.56.192.168.56.1:3000/ogrenci/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'ad': ad,
+          'soyad': soyad,
+          'bolumId': bolumId,
+        }),
+      );
+      if (response.statusCode == 200) {
+        fetchOgrenciler();
+        clearFields();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Öğrenci başarıyla güncellendi')));
+      } else {
+        throw Exception('Öğrenci güncellenemedi');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+    }
+  }
+
+  // Öğrenci silme
+  Future<void> deleteOgrenci(int id) async {
+    try {
+      final response = await http.delete(Uri.parse('http://:3000/ogrenci/$id'));
+
+      if (response.statusCode == 200) {
+        fetchOgrenciler();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Öğrenci başarıyla silindi')));
+      } else {
+        throw Exception('Öğrenci silinemedi');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+    }
+  }
+
+  // Form alanlarını temizleme
+  void clearFields() {
+    adController.clear();
+    soyadController.clear();
+    bolumIdController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Öğrenci Uygulaması'),
+        centerTitle: true, // AppBar başlığını ortalar
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            // Öğrenci ekleme formu
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: TextField(
+                controller: adController,
+                decoration: InputDecoration(
+                  labelText: 'Ad',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: TextField(
+                controller: soyadController,
+                decoration: InputDecoration(
+                  labelText: 'Soyad',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: TextField(
+                controller: bolumIdController,
+                decoration: InputDecoration(
+                  labelText: 'Bölüm ID',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final ad = adController.text;
+                final soyad = soyadController.text;
+                final bolumId = int.tryParse(bolumIdController.text) ?? 0;
+                addOgrenci(ad, soyad, bolumId);
+              },
+              child: Text('Öğrenci Ekle'),
+            ),
+
+            // Öğrenci listesi
+            Expanded(
+              child: ListView.builder(
+                itemCount: ogrenciler.length,
+                itemBuilder: (context, index) {
+                  final ogrenci = ogrenciler[index];
+                  return Card(
+                    margin: EdgeInsets.symmetric(vertical: 5),
+                    child: ListTile(
+                      title: Text('${ogrenci['ad']} ${ogrenci['soyad']}'),
+                      subtitle: Text('Bölüm ID: ${ogrenci['bolumId']}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.edit),
+                            onPressed: () {
+                              // Güncelleme işlemi
+                              adController.text = ogrenci['ad'];
+                              soyadController.text = ogrenci['soyad'];
+                              bolumIdController.text = ogrenci['bolumId'].toString();
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: Text('Öğrenci Güncelle'),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TextField(
+                                        controller: adController,
+                                        decoration: InputDecoration(labelText: 'Ad'),
+                                      ),
+                                      TextField(
+                                        controller: soyadController,
+                                        decoration: InputDecoration(labelText: 'Soyad'),
+                                      ),
+                                      TextField(
+                                        controller: bolumIdController,
+                                        decoration: InputDecoration(labelText: 'Bölüm ID'),
+                                        keyboardType: TextInputType.number,
+                                      ),
+                                    ],
+                                  ),
+                                  actions: [
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        final ad = adController.text;
+                                        final soyad = soyadController.text;
+                                        final bolumId = int.tryParse(bolumIdController.text) ?? 0;
+                                        updateOgrenci(ogrenci['ogrenciID'], ad, soyad, bolumId);
+                                        Navigator.pop(context);
+                                      },
+                                      child: Text('Güncelle'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () {
+                              // Silme işlemi
+                              deleteOgrenci(ogrenci['ogrenciID']);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
